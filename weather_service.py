@@ -1,40 +1,49 @@
-import openmeteo_requests
-import requests_cache
-from retry_requests import retry
+import requests
 
-
-cache_session = requests_cache.CachedSession('.cache', expire_after=3600)
-retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
-
-openmeteo = openmeteo_requests.Client(session=retry_session)
+API_KEY = "fffbf69aa5004d2d88b154502260204"
 
 
 def get_weather(lat, lon):
+    url = f"https://api.weatherapi.com/v1/forecast.json?key={API_KEY}&q={lat},{lon}&days=3"
 
-    url = "https://api.open-meteo.com/v1/forecast"
+    try:
+        res = requests.get(url, timeout=5)
+        data = res.json()
+    except:
+        return {
+            "Temperature": None,
+            "Humidity": None,
+            "Rainfall": None,
+            "error": "API request failed"
+        }
 
-    params = {
-        "latitude": lat,
-        "longitude": lon,
-        "hourly": [
-            "temperature_2m",
-            "relative_humidity_2m",
-            "precipitation"
-        ]
-    }
+    if "error" in data:
+        return {
+            "Temperature": None,
+            "Humidity": None,
+            "Rainfall": None,
+            "error": data["error"]["message"]
+        }
 
-    responses = openmeteo.weather_api(url, params=params)
+    current = data.get("current", {})
+    forecast = data.get("forecast", {}).get("forecastday", [])
 
-    response = responses[0]
+    temp = current.get("temp_c")
+    humidity = current.get("humidity")
 
-    hourly = response.Hourly()
+    # 🔥 SUM OF NEXT 3 DAYS RAINFALL
+    rainfall = sum(day["day"]["totalprecip_mm"] for day in forecast)
 
-    temperature = hourly.Variables(0).ValuesAsNumpy()
-    humidity = hourly.Variables(1).ValuesAsNumpy()
-    precipitation = hourly.Variables(2).ValuesAsNumpy()
+    if temp is None or humidity is None:
+        return {
+            "Temperature": None,
+            "Humidity": None,
+            "Rainfall": None,
+            "error": "Incomplete weather data"
+        }
 
     return {
-        "temperature_avg": float(temperature.mean()),
-        "humidity_avg": float(humidity.mean()),
-        "rainfall_total": float(precipitation.sum())
+        "Temperature": float(temp),
+        "Humidity": float(humidity),
+        "Rainfall": float(round(rainfall, 2))
     }
