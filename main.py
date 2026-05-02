@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from database import SessionLocal, engine
-from models import Base, User, Todo
+from models import Base, User, Todo, Recommendation
 from schemas import UserSignup, UserLogin, TaskCreate, TaskUpdate
 from auth_utils import hash_password, verify_password
 from auth_jwt import create_token
